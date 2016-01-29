@@ -1,0 +1,126 @@
+<head>
+<title>Octocat Force Layout</title>
+<script src="http://d3js.org/d3.v3.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/dat-gui/0.5/dat.gui.min.js"></script> 
+<!--<script type="text/javascript" src="/js/d3/d3.min.js"></script>-->
+<!--<script type="text/javascript" src="/js/dat-gui/build/dat.gui.js"></script>-->
+<style type="text/css">
+body {
+  padding: 0;
+  margin: 0;
+}
+</style>
+</head>
+<body>
+<script type="text/javascript">
+var config = { "tick": true, "friction": .9, "linkStrength": 1, "linkDistance": 9, "charge": .6, "gravity": .01, "theta": .8 }
+var gui = new dat.GUI()
+var fl = gui.addFolder("Force Layout")
+fl.open()
+var tickChanger = fl.add(config, "tick")
+tickChanger.onChange(function(value) {
+  value ? force.start() : force.stop()
+})
+var frictionChanger = fl.add(config, "friction", 0, 1)
+frictionChanger.onChange(function(value) {
+  force.friction(value)
+  force.start()
+})
+var linkDistanceChanger = fl.add(config, "linkDistance", 0, 50)
+linkDistanceChanger.onChange(function(value) {
+  force.linkDistance(value)
+  force.start()
+})
+var linkStrengthChanger = fl.add(config, "linkStrength", 0, 1)
+linkStrengthChanger.onChange(function(value) {
+  force.linkStrength(value)
+  force.start()
+})
+var chargeChanger = fl.add(config,"charge", 0, 5)
+chargeChanger.onChange(function(value) {
+  force.charge(-value)
+  force.start()
+})
+var gravityChanger = fl.add(config,"gravity", 0, 1)
+gravityChanger.onChange(function(value) {
+  force.gravity(value)
+  force.start()
+})
+var thetaChanger = fl.add(config,"theta", 0, 1)
+thetaChanger.onChange(function(value) {
+  force.theta(value)
+  force.start()
+})
+var radius = 3,
+    size = 9,
+    nodes = [],
+    links = [],
+    lookup = {},
+    directions = [[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [0, -1], [-1, 1]],
+    height = window.innerHeight,
+    width = window.innerWidth
+canvas = d3.select("body").append("canvas")
+    .attr("width", width)
+    .attr("height", height)
+context = canvas.node().getContext("2d")
+var force = d3.layout.force()
+    .linkDistance(config["linkDistance"])
+    .linkStrength(config["linkStrength"])
+    .charge(-config["charge"])
+    .gravity(config["gravity"])
+    .friction(config["friction"])
+    .theta(config["theta"])
+    .size([width, height])
+d3.json("readme-octocat_grid_"+size+"x"+size+".json", function(json) {
+  json.forEach(function(d) {
+    nodes.push(d)
+    lookup[d.x/size+","+d.y/size] = nodes[nodes.length - 1]
+  })
+  nodes.sort(sortByColor)
+  nodes.forEach(function(d) {
+    var x = d.x/size
+    var y = d.y/size
+    directions.forEach(function(n) {
+      var target = lookup[(x+n[0])+","+(y+n[1])]
+      if(target) links.push({source: d, target: target, id: d.color})
+    })
+  })
+  links.sort(sortByColor)
+  restart()
+})
+// sort by color for path drawing optimizations
+function sortByColor(a, b) {
+  return a.color < b.color ? -1 : a.color > b.color ? 1 : 0;
+}
+function restart() {
+  force.nodes(nodes).links(links)
+  force.start()
+}
+var currentColor
+force.on("tick", function() {
+  context.clearRect(0, 0, width, height)
+  for (var i = 0; i < links.length; i++) {
+    if(links[i].color != currentColor) {
+      context.stroke()
+      context.beginPath()
+      currentColor = context.strokeStyle = links[i].color
+    }
+    context.moveTo(links[i].source.x, links[i].source.y)
+    context.lineTo(links[i].target.x, links[i].target.y)
+  }
+  context.stroke()
+  for (var i = 0; i < nodes.length; i++) {
+    if(nodes[i].color != currentColor) {
+      context.fill()
+      context.beginPath()
+      currentColor = context.fillStyle = nodes[i].color
+    }
+    context.moveTo(nodes[i].x, nodes[i].y)
+    context.arc(nodes[i].x, nodes[i].y, radius, 0, 2 * Math.PI)
+  }
+  context.fill()
+  config["tick"] ? null : force.stop()
+})
+</script>
+</body>
+</html>

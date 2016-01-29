@@ -1,122 +1,301 @@
 <!DOCTYPE html>
-<meta charset="utf-8">
-<style>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Input text with D3</title> <!-- adapted from http://javadude.wordpress.com/2012/05/17/d3-js-with-dynamic-data/ -->
+    <style>
+        body {font-family: monospace; line-height: 160%; font-size: 18px; }
+        ul {list-style: none; margin: 0; padding: 0;}
+        li {display: inline-block; min-width: 80px; padding: 10px; background-color: #eee; margin: 0;}
+        input {border: 1px dotted #ccc; background: white; font-family: monospace; padding: 10px 20px; font-size: 18px; margin: 20px 10px 20px 0; color: red;}
+        input:focus { background-color:yellow; outline: none;}
+    </style>
+</head>
 
-.link {
-  stroke: #000;
-  stroke-width: 1.5px;
-}
-
-.node {
-  fill: black;
-  stroke-width: 1.5px;
-}
-
-.node.a { fill: #1f77b4; }
-.node.b { fill: #ff7f0e; }
-.node.c { fill: #2ca02c; }
-.node.d { fill: #2e302c; }
-.node.e { fill: #1c675c; }
-
-</style>
 <body>
-<script src="//d3js.org/d3.v3.min.js"></script>
-<script>
 
-var width = window.innerWidth,
-    height = window.innerHeight;
+    <form name="myform" onSubmit="return handleClick()">
+                <input name="Submit"  type="submit" value="Add to list" >
+                <input type="text" id="myVal" placeholder="Add some text&hellip;">
+    </form>
 
-var color = d3.scale.category10();
+    <style>
+        .link {
+          stroke: #000;
+          stroke-width: 0.5px;
+        }
 
-var nodes = [],
-    links = [];
+        .node {
+          fill: black;
+          stroke-width: 1.5px;
+        }
 
-var force = d3.layout.force()
-    .nodes(nodes)
-    .links(links)
-    .charge(-400)
-    .linkDistance(120)
-    .size([width, height])
-    .on("tick", tick);
+        .node.a { fill: #1f77b4; }
+        .node.b { fill: #ff7f0e; }
+        .node.c { fill: #2ca02c; }
+        .node.d { fill: #2e302c; }
+        .node.e { fill: #1c675c; }
+    </style>
 
-var svg = d3.select("body").append("svg")
-    .attr("width", width)
-    .attr("height", height);
+    <script src="//d3js.org/d3.v3.min.js"></script>
+    <script>
 
-var node = svg.selectAll(".node"),
-    link = svg.selectAll(".link");
+        var width = window.innerWidth,
+            height = window.innerHeight;
+
+        var color = d3.scale.category10();
+
+        var nodes = [],
+            links = [];
+
+        var force = self.force = d3.layout.force()
+            .nodes(nodes)
+            .links(links)
+            .charge(-400)
+            .linkDistance(120)
+            .size([width, height])
+            .on("tick", tick);
+
+        var svg = d3.select("body")
+            .on("keydown", keydown)
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height-20)
+            .attr("x", 0)
+            .attr("y", 20)
 
 
-// 1. Add three nodes and three links.
-setTimeout(function() {
-  var a = {id: "a", group: 0}, b = {id: "b", group: 0}, c = {id: "c", group: 1}, d = {id: "d", group: 1}, e = {id: "e", group: 1};
-  nodes.push(a, b, c, d, e);
-  links.push({source: a, target: b}, {source: a, target: c}, {source: b, target: c}, {source: c, target: d}, {source: a, target: e});
-  start();
-}, 0);
+        svg.append("svg:defs").selectAll("marker")
+            .data(["end"])      // Different link/path types can be defined here
+          .enter().append("svg:marker")    // This section adds in the arrows
+            .attr("id", String)
+            .attr("viewBox", "0 -5 10 10")
+            .attr("refX", 15)
+            .attr("refY", -1.5)
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .attr("orient", "auto")
+          .append("svg:path")
+            .attr("d", "M0,-5L10,0L0,5");
 
-// 2. Remove node B and associated links.
-setTimeout(function() {
-  nodes.splice(1, 1); // remove b
-  links.shift(); // remove a-b
-  links.splice(1,1); // remove b-c
-  start();
-}, 3000);
+        var node = svg.selectAll(".node"),
+            link = svg.selectAll(".link");
 
-// Add node B back.
-setTimeout(function() {
-  var a = nodes[0], b = {id: "b"}, c = nodes[1];
-  nodes.push(b);
-  links.push({source: a, target: b}, {source: b, target: c});
-  start();
-}, 6000);
+        var node_focus = undefined;
+        var node_join = undefined;
+        var node_info = undefined;
 
-function start() {
-    link = link.data(force.links(), function(d) {
-        return d.source.id + "-" + d.target.id;
-    });
+        var node_drag = d3.behavior.drag()
+                .on("dragstart", dragstart)
+                .on("drag", dragmove)
+                .on("dragend", dragend);
 
-    link.enter().insert("line", ".node")
-                .attr("class", "link");
+        // 1. Add three nodes and three links.
+        setTimeout(function() {
+            var a = {id: "a", group: 0, info: "IoT"}, b = {id: "b", group: 0, info: "CoAP"}, c = {id: "c", group: 1, info: "IPv6"}, d = {id: "d", group: 1, name: ""}, e = {id: "e", group: 1, info: "LoPAN"};
+            nodes.push(a, b, c, d, e);
+            links.push({source: a, target: b}, {source: a, target: c}, {source: b, target: c}, {source: c, target: d}, {source: a, target: e});
+            start();
+        }, 0);
 
-    link.exit().remove();
+        // 2. Remove node B and associated links.
+        //setTimeout(function() {
+        //    nodes.splice(1, 1); // remove b
+        //    links.shift(); // remove a-b
+         //   links.splice(1,1); // remove b-c
+        //    start();
+        //}, 3000);
 
-    node = node.data(force.nodes(), function(d) {
-        return d.id;
-    });
+        // Add node B back.
+        //setTimeout(function() {
+        //    var a = nodes[0], b = {id: "b"}, c = nodes[1];
+        //    nodes.push(b);
+        //    links.push({source: a, target: b}, {source: b, target: c});
+        //    start();
+        //}, 6000);
 
-    node.enter().append("g").attr("class", function(d) {
-        return "node " + d.id;
-    }).call(force.drag);
+        function start() {
+            link = link.data(force.links(), function(d) {
+                return d.source.id + "-" + d.target.id;
+            });
 
-    node.append("circle").attr("r", 8);
+            link.enter().insert("line", ".node")
+                        .attr("class", "link")
+                        .attr("marker-end", "url(#end)");
 
-    node.append("text")
-        .text(function(d) { return d.id; })
-        .attr("dx", "10")
-        .attr("dy", "0.35em")
-        .attr("font-family", "sans-serif")
-        .attr("font-size", "12px")
-        .attr("fill", "black");
+            link.exit().remove();
 
-    node.exit().remove();
+            node = node.data(force.nodes(), function(d) {
+                return d.id;
+            });
 
-  force.start();
-}
+            node.enter().append("g")
+                        .attr("class", function(d) {
+                            return "node " + d.id;
+                        })
+                        .style("fill", function(d) {
+                            return color(d.id)
+                        })
+                        .on("click", click);
 
-function tick() {
-  //node.attr("cx", function(d) { return d.x; })
-      //.attr("cy", function(d) { return d.y; })
 
-    node.attr("transform", function(d) {
-            return 'translate(' + [d.x, d.y] + ')';
-        })
-    link.attr("x1", function(d) { return d.source.x; })
-        .attr("y1", function(d) { return d.source.y; })
-        .attr("x2", function(d) { return d.target.x; })
-        .attr("y2", function(d) { return d.target.y; });
-}
+            node.call(node_drag);
 
-function click() {
-}
-</script>
+            node.append("circle").attr("r", 8);
+
+            node.append("text")
+                .text(function(d) { return d.info; })
+                .attr("dx", "10")
+                .attr("dy", "0.35em")
+                .attr("font-family", "sans-serif")
+                .attr("font-size", "12px")
+                .attr("fill", "black");
+
+            node.exit().remove();
+
+          force.start();
+        }
+
+        function tick() {
+          //node.attr("cx", function(d) { return d.x; })
+              //.attr("cy", function(d) { return d.y; })
+
+            node.attr("transform", function(d) {
+                    return 'translate(' + [d.x, d.y] + ')';
+                })
+            link.attr("x1", function(d) { return d.source.x; })
+                .attr("y1", function(d) { return d.source.y; })
+                .attr("x2", function(d) { return d.target.x; })
+                .attr("y2", function(d) { return d.target.y; });
+        }
+
+        function click( d ) {
+            if (d3.event.defaultPrevented) return; // click suppressed
+
+            if( node_join != undefined )
+            {
+                links.push({source: node_join, target: d});
+                start();
+
+                node_focus = undefined;
+                node_join = undefined;
+            }
+            else if( node_focus == undefined )
+            {
+                node_focus = d;
+            }
+
+        }
+
+        function keydown()
+        {
+            var key = d3.event;
+
+            if( node_info != undefined )
+            {
+                return
+            }
+
+            if( key.code == 'KeyA' && node_focus != undefined )
+            {
+                var new_node = { id: "new" + nodes.length }
+
+                nodes.push(new_node);
+                links.push({source: node_focus, target: new_node});
+                start();
+            }
+
+            else if( key.code == 'KeyD' && node_focus != undefined )
+            {
+                for( var i=links.length-1; i>=0; i--)
+                {
+                    if( links[i].source.id == node_focus.id || links[i].target.id == node_focus.id )
+                    {
+                        var z = links.splice(i,1)
+                    }
+                }
+                for( var i=nodes.length-1; i >= 0; i--)
+                {
+                    if( nodes[i].id == node_focus.id)
+                    {
+                        var y = nodes.splice(i,1)
+                        break;
+                    }
+
+                }
+
+                start();
+            }
+            else if( key.code == 'KeyJ' && node_focus != undefined )
+            {
+                node_join = node_focus;
+            }
+            else if( key.code == 'KeyJ' && node_join != undefined )
+            {
+                node_join = undefined;
+            }
+            else if( key.code == 'KeyR' && node_focus != undefined )
+            {
+                nodes[node_focus.index].fixed = false;
+            }
+            else if( key.code == 'KeyZ' )
+            {
+                for( var i=nodes.length-1; i >= 0; i--)
+                {
+                    nodes[i].fixed = false;
+                }
+            }
+            else if( key.code == 'KeyI' )
+            {
+                node_info = node_focus
+                return
+            }
+
+            node_focus = undefined;
+        }
+
+        function dragstart(d, i) {
+            force.stop() // stops the force auto positioning before you start dragging
+        }
+
+        function dragmove(d, i) {
+            d.px += d3.event.dx;
+            d.py += d3.event.dy;
+            d.x += d3.event.dx;
+            d.y += d3.event.dy;
+            tick(); // this is the key to make it work together with updating both px,py,x,y on d !
+        }
+
+        function dragend(d, i) {
+            d.fixed = true; // of course set the node to fixed so the force doesn't include the node in its auto positioning stuff
+            tick();
+            force.resume();
+        }
+
+        var dataset = [];
+
+
+        function handleClick(event){
+            if( node_info == undefined )
+            {
+                return
+            }
+            console.log(document.getElementById("myVal").value)
+            draw(document.getElementById("myVal").value)
+            nodes[node_info.index].info = document.getElementById("myVal").value
+            node_info = undefined
+            start()
+            return false;
+        }
+
+        function draw(val){
+            d3.select("body").select("ul").append("li");
+            dataset.push(val);
+            var p = d3.select("body").selectAll("li")
+            .data(dataset)
+            .text(function(d,i){return i + ": " + d;})
+        }
+
+    </script>
+</body>
+</html>

@@ -129,27 +129,31 @@
                 return d.id;
             });
 
-            node.enter().append("g")
+
+            var nodeEnter = node.enter().append("g")
                         .attr("class", function(d) {
                             return "node " + d.id;
                         })
                         .style("fill", function(d) {
                             return color(d.id)
                         })
-                        .on("click", click);
+                        .on("click", click)
 
+            nodeEnter.append("text")
+                      .text(function(d) {
+                                return d.info;
+                      }).attr("dx", "10")
+                        .attr("dy", "0.35em")
+                        .attr("font-family", "sans-serif")
+                        .attr("font-size", "12px")
+                        .attr("fill", "black");
+
+            nodeEnter.append("circle").attr("r", 10)
+
+            // update the text if it's been changed
+            node.selectAll("text").text(function(d) { return d.info; })
 
             node.call(node_drag);
-
-            node.append("circle").attr("r", 8);
-
-            node.append("text")
-                .text(function(d) { return d.info; })
-                .attr("dx", "10")
-                .attr("dy", "0.35em")
-                .attr("font-family", "sans-serif")
-                .attr("font-size", "12px")
-                .attr("fill", "black");
 
             node.exit().remove();
 
